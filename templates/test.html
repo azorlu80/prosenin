@@ -1,0 +1,39 @@
+{% extends 'base.html'%}
+{% load static %}
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+
+</head>
+  <a href="https://jquery.com/">jQuery</a>
+<button>buton</button>
+<script>
+$(document).ready(function() {
+
+<!--var end_point_url = {{ end_point_url }}-->
+<!--var post_varls = {{ post_vals }}-->
+
+$.ajax({
+    url: 'http://www.google.com',
+    data: {'a':1,'b':2,'c':3},
+    dataType: 'json',
+    complete : function(){
+        alert(this.url)
+    },
+    success: function(xml){
+    }
+});
+
+
+});
+</script>
+
+
+<body>
+
+</body>
+</html>
+{% endblock %}
