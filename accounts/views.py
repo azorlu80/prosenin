@@ -181,9 +181,11 @@ def forgotPassword(request):
     if request.method == 'POST':
         email = request.POST['email']
         if Account.objects.filter(email=email).exists():
+            #veri tabaninda bu mail adresi kayitlimi kontrol et.kayitli ise :
+            #bu email adresinde kayitli kullaniciyi bul
             user = Account.objects.get(email__exact=email)  # exact case sensitive iexact non case sensitive
 
-            # reset password email
+            # reset password email hazirla
             current_site = get_current_site(request)
             mail_subject = 'Please reset your password'
             message = render_to_string('accounts/reset_password_email.html', {
