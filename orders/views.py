@@ -2,10 +2,13 @@ from django.shortcuts import render
 from django.http import HttpResponse
 from carts.models import CartItem
 from .forms import OrderForm
-from .models import Order
+from .models import Order,Payment, OrderProduct
 from datetime import date
 from django.shortcuts import redirect
-
+import json
+from store.models import Product
+from django.core.mail import EmailMessage
+from django.template.loader import render_to_string
 
 def place_order(request, total=0, quantity=0):
     # öncelikli olarak cart_item var mı bakıyoruz.
@@ -75,7 +78,75 @@ def place_order(request, total=0, quantity=0):
             return redirect('checkout')
     return HttpResponse(("OK"))
 
-
 def payments(request):
+    #TODO:json olarak donen degeri goster.fecth
+    body = json.loads(request.body)
+    #order amount ayni zamanda paypaldan donen json dosyasindan da alinabilir di?
+    order = Order.objects.get(user=request.user, is_ordered=False, order_number=body["orderID"])
+    # print(body)
+    #TODO:store transaction details inside Payment model
+    payment = Payment(
+        user = request.user,
+        payment_id = body["transID"],
+        payment_method=body["payment_method"],
+        amount_payment=order.order_total,
+        status=body["status"],
+        
+    )
+    payment.save()
+    order.payment = payment
+    order.is_ordered = True
+    order.save()
+
+    #move the cart items to order product table
+
+    cart_items = CartItem.objects.filter(user=request.user)
+    for item in cart_items:
+        orderproduct = OrderProduct()
+
+        orderproduct.order_id = order.id
+        orderproduct.payment = payment
+        orderproduct.user_id = request.user.id
+        orderproduct.product_id = item.product_id
+        orderproduct.quantity = item.quantity
+        orderproduct.ordered = True
+        orderproduct.product_price = item.product.price
+        orderproduct.save() 
+
+        #add product variations to orderproduct table
+        cart_item = CartItem.objects.get(id=item.id)
+        product_variation = cart_item.variations.all()
+        orderproduct = OrderProduct.objects.get(id=orderproduct.id)
+        orderproduct.variations.set(product_variation)
+        orderproduct.save()
+
+
+
+    #reduce quantity of the sold procusts
+
+        product = Product.objects.get(id=item.product_id)
+        product.stock -= item.quantity
+        product.save()
+
+
+
+    #clear cart
+
+    CartItem.objects.filter(user=request.user).delete()
+
+    #TODO:send order recivede email to customer
+
+    mail_subject = 'Thank you for your order'
+    message = render_to_string('orders/order_recieved_email', {
+                'user': request.user,
+                "order": order,
+                
+    })
+    to_mail = request.user.email
+    send_email = EmailMessage(mail_subject, message, to=[to_mail])
+    send_email.send()
+
+    #send order number transaction id back to sendData method via json responce
+
     
     return render(request, 'orders/payments.html')
